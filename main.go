@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/gorilla/mux"
 	"golang.org/x/net/context"
 )
 
@@ -18,11 +19,18 @@ func main() {
 	ps := handlers.NewProducts(l)
 
 	// create new serveMux
-	sm := http.NewServeMux()
+	sm := mux.NewRouter()
 
-	// sm.Handle("/", hh)
-	// sm.Handle("/goodbye", gh)
-	sm.Handle("/", ps)
+	getRouter := sm.Methods("GET").Subrouter()
+	getRouter.HandleFunc("/", ps.GetProducts)
+
+	postRouter := sm.Methods("POST").Subrouter()
+	postRouter.HandleFunc("/", ps.AddProduct)
+	postRouter.Use(ps.MiddlewareProductValidation)
+
+	putRouter := sm.Methods("PUT").Subrouter()
+	putRouter.HandleFunc("/{id:[0-9]+}", ps.UpdateProduct)
+	putRouter.Use(ps.MiddlewareProductValidation)
 
 	// create custom server to better configure your sever to your needs
 	s := &http.Server{
