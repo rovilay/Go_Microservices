@@ -14,8 +14,7 @@ import (
 
 func main() {
 	l := log.New(os.Stdout, "product-api", log.LstdFlags)
-	// hh := handlers.NewHello(l)
-	// gh := handlers.NewGoodbye(l)
+
 	ps := handlers.NewProducts(l)
 
 	// create new serveMux
@@ -36,18 +35,21 @@ func main() {
 	s := &http.Server{
 		Addr:         ":9090",
 		Handler:      sm,
+		ErrorLog:     l,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  120 * time.Second,
-		ReadTimeout:  1 * time.Second,
-		WriteTimeout: 1 * time.Second,
 	}
 
 	s.ListenAndServe()
 
 	go func() {
-		err := s.ListenAndServe()
+		l.Println("Starting server on port n9090")
 
+		err := s.ListenAndServe()
 		if err != nil {
-			l.Fatal(err)
+			l.Printf("Error starting server: %s\n", err)
+			os.Exit(1)
 		}
 	}()
 
@@ -57,9 +59,8 @@ func main() {
 	signal.Notify(sigChan, os.Kill)
 
 	sig := <-sigChan
+	log.Println("Recieved terminate, graceful shutdown", sig)
 
-	l.Println("Recieved terminate, graceful shutdown", sig)
-
-	tc, _ := context.WithTimeout(context.Background(), 30*time.Second)
-	s.Shutdown(tc)
+	ctx, _ := context.WithTimeout(context.Background(), 30*time.Second)
+	s.Shutdown(ctx)
 }

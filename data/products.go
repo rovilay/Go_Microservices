@@ -4,13 +4,36 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"regexp"
 	"time"
+
+	"github.com/go-playground/validator"
 )
 
 // FromJSON desrializes JSON to Product type
 func (p *Product) FromJSON(r io.Reader) error {
 	e := json.NewDecoder(r)
 	return e.Decode(p)
+}
+
+// Validate ...
+func (p *Product) Validate() error {
+	validate := validator.New()
+	validate.RegisterValidation("sku", validateSKU)
+
+	return validate.Struct(p)
+}
+
+func validateSKU(fl validator.FieldLevel) bool {
+	// sku is of formate abc-absd-dsdsf
+	rgx := regexp.MustCompile(`[a-z]+-[a-z]+-[a-z]+`)
+	matches := rgx.FindAllString(fl.Field().String(), -1)
+
+	if len(matches) != 1 {
+		return false
+	}
+
+	return true
 }
 
 // ToJSON serializes the contents of the collection to JSON

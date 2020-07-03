@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"go_micorservices/data"
 	"log"
 	"net/http"
@@ -31,9 +32,9 @@ func (p *Products) GetProducts(res http.ResponseWriter, r *http.Request) {
 func (p *Products) AddProduct(res http.ResponseWriter, r *http.Request) {
 	p.l.Println("Handle POST products")
 
-	prod := r.Context().Value(KeyProduct{}).(*data.Product)
+	prod := r.Context().Value(KeyProduct{}).(data.Product)
 
-	data.AddProduct(prod)
+	data.AddProduct(&prod)
 }
 
 // UpdateProduct ...
@@ -61,13 +62,25 @@ func (p *Products) UpdateProduct(res http.ResponseWriter, r *http.Request) {
 }
 
 // MiddlewareProductValidation ...
-func (p Products) MiddlewareProductValidation(next http.Handler) http.Handler {
+func (p *Products) MiddlewareProductValidation(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(res http.ResponseWriter, r *http.Request) {
-		prod := &data.Product{}
-		err := prod.FromJSON(r.Body)
+		prod := data.Product{}
 
+		err := prod.FromJSON(r.Body)
 		if err != nil {
 			http.Error(res, "Unable to unmarshal payload", http.StatusBadRequest)
+			return
+		}
+
+		// validate product
+		err = prod.Validate()
+		if err != nil {
+			p.l.Println("[ERROR] validating product", err)
+			http.Error(
+				res,
+				fmt.Sprintf("Invalid product payload: %s", err),
+				http.StatusBadRequest,
+			)
 			return
 		}
 
